@@ -159,6 +159,7 @@ tbody td.wrap{white-space:normal;max-width:140px;}
 #toast.show{transform:translateX(-50%) translateY(0);}
 #toast.error{background:var(--red);}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
@@ -407,6 +408,10 @@ tbody td.wrap{white-space:normal;max-width:140px;}
 <script>
 const DRAFT_KEY='sps_draft_v3';
 const SUBMISSIONS_KEY='sps_submissions_v3';
+const SUPABASE_URL='https://kztkbtvtbihumuupvhyy.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6dGtidHZ0YmlodW11dXB2aHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODExNTA4MDgsImV4cCI6MjA5NjcyNjgwOH0.mqstO-xTbwLWNX4RKEQ82DeuMtY2IXc1o7nEtbqr404';
+const supabase=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+
 const TEXT_FIELDS=['formSerial','diaryNo','classAdmission','dateAdmission','admissionNo',
   'studentName','studentAadharNo','studentPEN','dob','bloodGroup','height','weight','address',
   'fatherName','fatherAadharNo','motherName','motherAadharNo',
@@ -709,15 +714,30 @@ function openPrintPreview(d){
 }
 
 // ── SUBMISSIONS ────────────────────────────────────────────
-function loadSubmissions(){try{return JSON.parse(localStorage.getItem(SUBMISSIONS_KEY))||[];}catch(e){return[];}}
-function updateBadge(){submissions=loadSubmissions();document.getElementById('count-badge').textContent=submissions.length;}
+async function loadSubmissions(){
+  const {data,error}=await supabase.from('admissions').select('*').order('created_at',{ascending:false});
+  if(error){console.error(error);return [];}
+  return data.map(r=>({...r.data,db_id:r.id}));
+}
+function updateBadge(){document.getElementById('count-badge').textContent=submissions.length;}
 function rebuildClassFilter(){
   const sel=document.getElementById('f-class');
   const current=sel.value;
   const classes=[...new Set(submissions.map(s=>s.classAdmission).filter(Boolean))].sort();
   sel.innerHTML='<option value="">All Classes</option>'+classes.map(c=>`<option value="${c}"${c===current?' selected':''}>${c}</option>`).join('');
 }
-function renderTable(){submissions=loadSubmissions();rebuildClassFilter();applyFilters();}
+async function refreshCloudData(){
+  submissions=await loadSubmissions();
+  updateBadge();
+  rebuildClassFilter();
+  applyFilters();
+}
+
+async function renderTable(){
+  submissions=await loadSubmissions();
+  rebuildClassFilter();
+  applyFilters();
+}
 
 function applyFilters(){
   const search=document.getElementById('f-search').value.toLowerCase().trim();
